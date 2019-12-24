@@ -4,15 +4,20 @@ import { getMovies, addMovie, addScreening} from "../data-provider";
 import Movie from './movie';
 import { Divider, Button, Dialog, Classes } from '@blueprintjs/core';
 import EditableMovie from './editable-movie'
+import {
+    withRouter
+} from 'react-router-dom'
 
-export default class Movies extends React.Component {
+export  class Movies extends React.Component {
     constructor(props) {
         super(props);
         this.token = sessionStorage.getItem('utoken')
         this.state = {
             moviesList: [],
         };
-        
+        if(this.token===null){
+            this.props.history.push('/login')
+        }
         this.polling = setInterval(()=> {
             if (this.screening){
                 this.onScreeningClicked(this.screening, undefined, this.movie, undefined)
@@ -20,10 +25,13 @@ export default class Movies extends React.Component {
         }, 3000)
     }
     async componentDidMount(){
+        if(!this.token===null){
+        console.log("componentDidMount")
         const movies = await getMovies(this.token)
         console.log("Here we are:", movies[0]);
         
         this.setState({moviesList: movies})
+        }
     }
     componentWillUnmount(){
         clearInterval(this.polling)
@@ -31,17 +39,26 @@ export default class Movies extends React.Component {
     async onAddMovieClicked(genre, length, screenId, title){
         console.log("onAddMovieClicked: ", genre, length, screenId, title);
         // make
-        const res = await addMovie(this.token, screenId, title, genre, length)
-        console.log("onAddMovieClicked: ", res);
+        if(!genre || !length || !screenId || !title){
+            return
+        }
+        else{
+            const res = await addMovie(this.token, screenId, title, genre, length)
+            if(res===undefined ||res.hasOwnProperty('err')){
+                return
+            }
+            this.setState((prev) => ({moviesList: [res,...prev.moviesList]}))
+        }
         
-        this.setState((prev) => ({moviesList: [res,...prev.moviesList]}))
     }
     render() {
         return (
             <Container>
                 <Row>
                     <Col>
-                        <EditableMovie onAddClick={(genre, length, screenId, title) => this.onAddMovieClicked(genre, length, screenId, title)}/>
+                        <EditableMovie onAddClick={
+                            (genre, length, screenId, title) => this.onAddMovieClicked(genre, length, screenId, title)}
+                            />
                         {this.state.moviesList.map((movie, movieIndex) => (
                             <div>
                                 <Divider />
@@ -83,3 +100,5 @@ export default class Movies extends React.Component {
         // this.setState({reservedSeats: reservations, numCols: movie.screen.cols, numRows: movie.screen.rows})
     }
 }
+
+export default withRouter(Movies)
